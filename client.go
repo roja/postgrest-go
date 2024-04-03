@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 )
 
 var (
@@ -18,21 +20,22 @@ type Client struct {
 	ClientError error
 	session     http.Client
 	Transport   *transport
+	Headers     map[string]string
 }
 
 // NewClient constructs a new client given a URL to a Postgrest instance.
 func NewClient(rawURL, schema string, headers map[string]string) *Client {
 	// Create URL from rawURL
-	baseURL, err := url.Parse(rawURL)
-	if err != nil {
-		return &Client{ClientError: err}
-	}
+	// baseURL, err := url.Parse(rawURL)
+	// if err != nil {
+	// 	return &Client{ClientError: err}
+	// }
 
 	t := transport{
-		header:  http.Header{},
-		baseURL: *baseURL,
-		Parent:  nil,
+		header: http.Header{},
+		Parent: nil,
 	}
+	fmt.Println("t.baseURL: ", t.baseURL)
 
 	c := Client{
 		session:   http.Client{Transport: &t},
@@ -55,16 +58,32 @@ func NewClient(rawURL, schema string, headers map[string]string) *Client {
 		c.Transport.header.Set(key, value)
 	}
 
+	c.Headers = make(map[string]string)
+	for key, value := range c.Transport.header {
+		c.Headers[key] = strings.Join(value, " ")
+	}
+
 	return &c
 }
 
+func (c *Client) PrintStuff() {
+
+	// fmt.Println("PRINT STUFF+++++++++++++")
+	// fmt.Println(c.Transport.baseURL)
+	// fmt.Println("PRINT STUFF+++++++++++++")
+}
+
 func (c *Client) Ping() bool {
-	req, err := http.NewRequest("GET", path.Join(c.Transport.baseURL.Path, ""), nil)
+	req, err := http.NewRequest("GET", c.Transport.baseURL.String(), nil)
 	if err != nil {
 		c.ClientError = err
 
 		return false
 	}
+	req.Header = c.Transport.header
+	fmt.Println("request URL: ", req.URL)
+	fmt.Printf("Request: %v\n", req)
+	fmt.Println("Headers: ", req.Header)
 
 	resp, err := c.session.Do(req)
 	if err != nil {
@@ -74,6 +93,8 @@ func (c *Client) Ping() bool {
 	}
 
 	if resp.Status != "200 OK" {
+		fmt.Printf("Error occurred:\n%v\n%v\n", resp.Status, resp.StatusCode)
+		// fmt.Println(resp.Body.Read())
 		c.ClientError = errors.New("ping failed")
 
 		return false
@@ -99,7 +120,7 @@ func (c *Client) ChangeSchema(schema string) *Client {
 
 // From sets the table to query from.
 func (c *Client) From(table string) *QueryBuilder {
-	return &QueryBuilder{client: c, tableName: table, headers: map[string]string{}, params: map[string]string{}}
+	return &QueryBuilder{client: c, tableName: table, headers: c.Headers, params: map[string]string{}}
 }
 
 // Rpc executes a Postgres function (a.k.a., Remote Prodedure Call), given the
