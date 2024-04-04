@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"path"
 	"strconv"
@@ -32,40 +31,24 @@ func executeHelper(client *Client, method string, body []byte, urlFragments []st
 	}
 
 	readerBody := bytes.NewBuffer(body)
-	// baseUrl := path.Join(append([]string{client.Transport.baseURL.Path}, urlFragments...)...)
-	log.Println("Dafuq is this: ", path.Join(append([]string{client.Transport.baseURL.Path}, urlFragments...)...))
-
-	// baseUrl := client.Transport.baseURL.String()
-	baseUrl := "https://shtcgllukaoggyenckxb.supabase.co/rest/v1/customers?select=*"
+	baseUrl := path.Join(append([]string{client.Transport.baseURL.Path}, urlFragments...)...)
 	req, err := http.NewRequest(method, baseUrl, readerBody)
 	if err != nil {
 		return nil, 0, fmt.Errorf("error creating request: %s", err.Error())
 	}
 
-	// for key, val := range headers {
-	// 	req.Header.Add(key, val)
-	// }
-	// q := req.URL.Query()
-	// for key, val := range params {
-	// 	q.Add(key, val)
-	// }
-	// req.URL.RawQuery = q.Encode()
-	log.Println("******************************************************")
-	log.Println("******************************************************")
-	log.Println("header info: ", req.Header)
-	// log.Printf("req: %v\n", req)
-	log.Printf("*******************************************************\nreq URL: %v\n", req.URL)
-	log.Println("client.session: ", client.session.Transport)
+	for key, val := range headers {
+		req.Header.Add(key, val)
+	}
+	q := req.URL.Query()
+	for key, val := range params {
+		q.Add(key, val)
+	}
+	req.URL.RawQuery = q.Encode()
 	resp, err := client.session.Do(req)
 	if err != nil {
 		return nil, 0, err
 	}
-
-	log.Println("******************************************************")
-	log.Println("******************************************************")
-	log.Println("******************************************************")
-	log.Println("******************************************************")
-	log.Println(req)
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -74,11 +57,6 @@ func executeHelper(client *Client, method string, body []byte, urlFragments []st
 
 	// https://postgrest.org/en/stable/api.html#errors-and-http-status-codes
 	if resp.StatusCode >= 400 {
-		log.Println(resp)
-		log.Println(resp.Status)
-		defer resp.Body.Close()
-		log.Println(string(respBody))
-
 		var errmsg *ExecuteError
 		err := json.Unmarshal(respBody, &errmsg)
 		if err != nil {
