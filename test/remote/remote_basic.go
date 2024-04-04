@@ -50,11 +50,13 @@ func main() {
 
 	accessToken, authClient := loginAndGetToken(projectURL, anonKey)
 	headers := make(map[string]string)
-	headers["Authorization"] = "Bearer " + accessToken
+	// headers["Authorization"] = "Bearer " + accessToken
 	headers["apikey"] = anonKey
 
 	fmt.Println(authClient)
 	client := postgrest.NewClient(os.Getenv("SUPABASE_URL"), "public", headers)
+
+	client.SetAuthToken(accessToken)
 
 	//
 	rooms, _, err := client.From("rooms").Select("*", "", false).ExecuteString()
